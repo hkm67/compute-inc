@@ -9,7 +9,7 @@
   const action = document.getElementById('action');
   const files = [
     'asset/vendor/three.min.js', 'asset/vendor/d3.min.js', 'asset/world.js', 'asset/models.js',
-    'asset/ui/market-routes.js', 'asset/ui/scene.js', 'asset/ui/game.js?v=2'
+    'asset/ui/market-routes.js', 'asset/ui/scene.js?v=3', 'asset/ui/game.js?v=2'
   ];
   const requests = new Map();
   let selectMarket;
@@ -115,6 +115,8 @@
   });
 
   showStart();
-  // Warm the scripts after the choices paint. A tap can start or retry the same downloads.
-  requestAnimationFrame(() => setTimeout(() => loadScripts().catch(() => {}), 0));
+  // Paint the choices first, then render the game behind the open notice.
+  requestAnimationFrame(() => setTimeout(() => loadScripts().then(initGame, () => {
+    if (screen.open && !close.disabled) status.textContent = 'The globe couldn’t load. Choose a market to retry.';
+  }), 0));
 })();

@@ -35,6 +35,7 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
   let crewPace = 1, capability = 0;
   let protestCity, protestMarker;
   const fallbackNote = document.getElementById('fallback-note');
+  let fallbackGlobe;
   const cityCache = new Map();
   const bayImages = [];
   let globe, district, plots = [], walkers = [], markers = [];
@@ -49,6 +50,26 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
   let lastQualityChange = 0, renderCost = 5;
   let cityBuilds = 0, plotReplacements = 0, rendererResizes = 0;
 
+  function drawFallbackGlobe([longitude, latitude]) {
+    if (!fallbackGlobe) {
+      fallbackGlobe = document.createElement('canvas');
+      fallbackGlobe.className = 'fallback-globe';
+      fallbackGlobe.width = fallbackGlobe.height = 768;
+      fallbackGlobe.setAttribute('aria-hidden', 'true');
+      stage.prepend(fallbackGlobe);
+    }
+    const ctx = fallbackGlobe.getContext('2d');
+    if (!ctx) return;
+    const half = fallbackGlobe.width / 2;
+    const projection = d3.geoOrthographic().rotate([-longitude, -latitude]).translate([half, half]).scale(half - 1);
+    const path = d3.geoPath(projection, ctx);
+    ctx.clearRect(0, 0, fallbackGlobe.width, fallbackGlobe.height);
+    ctx.beginPath(); path({ type: 'Sphere' });
+    ctx.fillStyle = '#438eaf'; ctx.fill();
+    ctx.beginPath(); path(ComputeWorld.land);
+    ctx.fillStyle = '#7fa256'; ctx.fill();
+  }
+
   function buildGlobe() {
     if (!renderer || globe) return;
     globe = kit.createGlobe(d3, ComputeWorld);
@@ -59,7 +80,6 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
     for (const marker of markers) marker.scale.setScalar(marker.userData.city === 'paris' ? .79 : .65);
     syncOperatingSites();
     protestMarker = markers.find(marker => marker.userData.city === protestCity);
-    stage.classList.remove('illustrated');
     shadowDirty = true;
     needsDraw = true;
     if (view === 'globe') { layout(); draw(); }
@@ -68,7 +88,6 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
     kit.configureRenderer(renderer, pixelRatio);
     renderer.shadowMap.autoUpdate = false;
     kit.addLighting(scene);
-    stage.classList.add('illustrated');
     if ('requestIdleCallback' in window) requestIdleCallback(buildGlobe, { timeout: 150 });
     else setTimeout(buildGlobe, 0);
   } else {
@@ -315,9 +334,10 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
       layout();
       draw();
     } else {
+      drawFallbackGlobe(catalog.find(item => item.id === id).coordinate);
       layout();
       cityFlag.style.left = '50%';
-      cityFlag.style.top = '47%';
+      cityFlag.style.top = '50%';
     }
     if (returning) approach(false);
   }
@@ -501,9 +521,10 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
       yaw = endYaw;
       pitch = endPitch;
       if (!renderer) {
+        drawFallbackGlobe(marketHubs[id]);
         marketFlag.hidden = false;
         marketFlag.style.left = '50%';
-        marketFlag.style.top = '35%';
+        marketFlag.style.top = '50%';
         cityFlag.hidden = true;
       }
     }
@@ -664,6 +685,7 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
     }
     if (marketShownUntil && now >= marketShownUntil) {
       stopMarketFocus();
+      if (!renderer && view === 'globe') drawFallbackGlobe(catalog.find(item => item.id === selected).coordinate);
       cityFlag.hidden = view !== 'globe';
       needsDraw = true;
     }

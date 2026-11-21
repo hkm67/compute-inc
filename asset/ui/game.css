@@ -30,7 +30,8 @@ button:not(:disabled):active { translate: 0 2px; }
 #game { position: relative; height: 100vh; height: 100dvh; overflow: hidden; isolation: isolate; }
 #stage { position: absolute; inset: 0; background: radial-gradient(ellipse at 45% 30%, #dbf0ec, #99cfd7 70%, #7fbac4); }
 #game[data-view="city"] #stage { background: linear-gradient(#b9d9d8, #d6dbbd 60%, #b2b68f); }
-#stage.illustrated { background: #a2d5da url(globe.webp) center / cover no-repeat; }
+.fallback-globe { position: absolute; left: 50%; top: 50%; translate: -50% -50%; width: min(88vw, 65dvh); pointer-events: none; }
+#game[data-view="city"] .fallback-globe { display: none; }
 #game[data-view="city"][data-city="paris"] #stage.illustrated { background: #c7bda5 url(paris.webp) center / cover no-repeat; }
 #scene { width: 100%; height: 100%; display: block; touch-action: none; }
 #game[data-view="globe"] #scene { cursor: grab; }
@@ -79,9 +80,6 @@ button:not(:disabled):active { translate: 0 2px; }
 #toast { position: absolute; left: 50%; bottom: max(95px, calc(15px + 3% + 64px + env(safe-area-inset-bottom))); transform: translateX(-50%); margin: 0; border-radius: 12px; padding: 7px 13px; background: #20382ff2; color: white; text-align: center; font-size: 13px; width: max-content; max-width: 85%; pointer-events: none; }
 dialog { width: min(410px, calc(100% - 24px)); max-height: min(74vh, 650px); max-height: min(74dvh, 650px); margin: auto auto max(14px, env(safe-area-inset-bottom)); padding: 0 20px 18px; border: 0; border-radius: 23px; background: var(--paper); color: var(--ink); box-shadow: 0 6px 40px #25342f30; overscroll-behavior: contain; }
 dialog::backdrop { background: #172f2c52; }
-#game[data-preview] #stage {
-  background: #8acdd8 url(globe.webp) center 53% / min(100vw, 65dvh) auto no-repeat;
-}
 #game[data-preview] { font-family: system-ui, sans-serif; }
 #game[data-preview] #stage::before, #game[data-preview] #city-flag { display: none; }
 #quick-start {
@@ -93,8 +91,7 @@ dialog::backdrop { background: #172f2c52; }
 }
 #quick-start::backdrop { background: #17342e16; }
 body:has(#quick-start[open]) .actions { opacity: .55; }
-.dispatch-head { display: flex; align-items: center; gap: 10px; padding: 0 26px 0 2px; }
-.dispatch-head img { flex: none; object-fit: contain; }
+.dispatch-head { padding: 0 30px 0 2px; }
 .dispatch-head h1 { margin: 0; font: 600 clamp(23px, 6.3vw, 29px)/1 var(--display); }
 .dispatch-head h1:focus { outline: 0; }
 .dispatch-head p { margin: 4px 0 0; font: 500 13px/1.25 system-ui, sans-serif; }
