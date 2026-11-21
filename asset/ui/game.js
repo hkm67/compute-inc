@@ -1,6 +1,6 @@
 'use strict';
 
-(() => {
+function createGame(onRestart) {
   const $ = id => document.getElementById(id);
   const catalog = ComputeAssets.landmarks;
   const cityById = new Map(catalog.map(site => [site.id, site]));
@@ -32,6 +32,7 @@
   const acquisitions = new Set();
   let view = 'globe', selected = 'paris', panel, opener, centerOnReturn = false;
   let lastFrame, lastPaint = 0, toastUntil = 0, milestoneIndex = 0, displayedWin = false;
+  let animationFrame;
 
   function number(value) {
     const format = value < 1e6 ? whole : compact;
@@ -270,6 +271,7 @@
     render();
   });
   $('restart').addEventListener('click', () => {
+    cancelAnimationFrame(animationFrame);
     state = freshState();
     renderPlaybackRate();
     acquisitions.clear();
@@ -288,8 +290,7 @@
     scene.reset();
     sheet.close();
     text($('headline'), 'Choose a country to start automating jobs.');
-    showGlobe();
-    $('navigate').focus();
+    onRestart();
   });
 
   function renderMarkets() {
@@ -313,20 +314,25 @@
       options.append(button);
     }
   }
-  $('country-options').addEventListener('click', event => {
+  function selectMarket(id) {
+    const starting = state.phase === 'start';
     const oldMarket = state.currentCountry;
-    const button = event.target.closest('[data-country]');
-    if (!button || !Game.selectCountry(state, button.dataset.country)) return;
-    sheet.close();
-    lastFrame = performance.now();
+    if (!Game.selectCountry(state, id)) return;
+    if (sheet.open) sheet.close();
     const jobs = Game.MARKET_POOLS[state.countries.length - 1];
-    if (view !== 'globe') showGlobe();
+    if (starting || view !== 'globe') showGlobe();
     const label = Game.currentCountry(state).name + ' · +' + number(jobs) + ' market jobs';
     scene.openMarket(state.currentCountry, oldMarket, label);
     text($('headline'), label);
     $('toast').hidden = true;
     render();
     action.focus({ preventScroll: true });
+    lastFrame = performance.now();
+    if (starting) animationFrame = requestAnimationFrame(frame);
+  }
+  $('country-options').addEventListener('click', event => {
+    const button = event.target.closest('[data-country]');
+    if (button) selectMarket(button.dataset.country);
   });
 
   function localIncidentCity() {
@@ -624,8 +630,7 @@
       showPayout(now, state.earned - earnedBefore);
       if (now - lastPaint >= 80) { render(); lastPaint = now; }
     }
-    requestAnimationFrame(frame);
+    animationFrame = requestAnimationFrame(frame);
   }
-  showGlobe();
-  requestAnimationFrame(frame);
-})();
+  return selectMarket;
+}

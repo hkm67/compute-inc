@@ -6,8 +6,9 @@
   <meta name="theme-color" content="#a5d7dc">
   <title>Compute, Inc.</title>
   <link rel="stylesheet" href="asset/ui/game.css">
-  <link rel="preload" href="asset/ui/dm-sans.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="asset/ui/barlow.woff2" as="font" type="font/woff2" crossorigin>
+  <script defer src="asset/ui/economy.js"></script>
+  <script defer src="asset/ui/quick-start.js"></script>
 </head>
 <body>
 <svg class="symbols" aria-hidden="true"><defs>
@@ -17,14 +18,25 @@
 <symbol id="rack" viewBox="0 0 24 24"><path d="M4 2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm1 3v3h3V5zm7 .7v1.6h7V5.7zM4 13h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2zm1 3v3h3v-3zm7 .7v1.6h7v-1.6z" fill-rule="evenodd"/></symbol>
 <symbol id="pin" viewBox="0 0 24 24"><path d="M12 1a8 8 0 0 0-8 8c0 5 8 14 8 14s8-9 8-14a8 8 0 0 0-8-8zm0 4.7A3.3 3.3 0 1 1 12 12a3.3 3.3 0 0 1 0-6.3z" fill-rule="evenodd"/></symbol>
 </defs></svg>
-  <main id="game" data-view="globe" aria-label="Compute, Inc.">
+  <main id="quick-start" aria-labelledby="start-title">
+    <div class="start-copy">
+      <h1 id="start-title">Compute, Inc.</h1>
+      <p>Build datacentres. Replace every job. Keep the money.</p>
+      <h2 id="market-prompt">Choose your first market</h2>
+      <div id="start-countries" role="group" aria-labelledby="market-prompt"></div>
+      <p id="start-status" role="status"></p>
+      <noscript>Enable JavaScript to play.</noscript>
+    </div>
+    <div class="start-globe" aria-hidden="true"></div>
+  </main>
+  <main id="game" data-view="globe" aria-label="Compute, Inc." hidden>
     <div id="stage">
-      <div id="paris-street" aria-hidden="true" hidden><div id="new-bays"></div><div id="street-crew" hidden><img src="asset/ui/worker.webp" alt=""></div></div>
+      <div id="paris-street" aria-hidden="true" hidden><div id="new-bays"></div><div id="street-crew" hidden><img loading="lazy" src="asset/ui/worker.webp" alt=""></div></div>
       <canvas id="scene" tabindex="0" aria-label="World globe. Drag or use the arrow keys to spin. Press Enter to visit the selected city."></canvas>
       <button id="city-flag" class="scene-flag" type="button">Paris</button>
       <span id="capacity-flag" class="scene-flag" hidden><svg class="ico" aria-hidden="true"><use href="#rack"/></svg><span id="capacity">1/25 used</span></span>
-      <button id="build-plot" type="button" aria-label="Build servers on this plot" hidden><img src="asset/ui/server-bay.webp" alt=""><span>+</span></button>
-      <button id="rival-site" type="button" hidden><img src="asset/ui/server-bay.webp" alt=""><span class="company-sign"></span><small></small></button>
+      <button id="build-plot" type="button" aria-label="Build servers on this plot" hidden><img loading="lazy" src="asset/ui/server-bay.webp" alt=""><span>+</span></button>
+      <button id="rival-site" type="button" hidden><img loading="lazy" src="asset/ui/server-bay.webp" alt=""><span class="company-sign"></span><small></small></button>
       <div id="protest-targets" role="group" aria-label="Protest groups" hidden></div>
       <span id="market-flag" class="scene-flag" role="status" hidden></span>
       <button id="protest-flag" type="button" class="scene-flag" hidden>Protest</button>
@@ -50,7 +62,7 @@
       <p id="market-status"></p>
       <p id="status"></p>
       <div id="workbench" aria-label="Automation throughput and payout">
-        <div class="bench-line" aria-hidden="true"><img class="bench-worker" src="asset/ui/worker.webp" alt=""><i class="job-slip"></i><img class="bench-rack" src="asset/ui/server-bay.webp" alt=""><i class="pay-slip"></i><span class="coin-roll"></span></div>
+        <div class="bench-line" aria-hidden="true"><img loading="lazy" class="bench-worker" src="asset/ui/worker.webp" alt=""><i class="job-slip"></i><img loading="lazy" class="bench-rack" src="asset/ui/server-bay.webp" alt=""><i class="pay-slip"></i><span class="coin-roll"></span></div>
         <div class="bench-values"><span id="bench-speed"></span><span id="bench-payout"></span></div>
       </div>
       <output id="upgrade-result" hidden></output>
@@ -77,13 +89,5 @@
     </section>
     <section id="victory-panel" hidden><p id="victory-summary"></p><button type="button" id="restart">Find another planet</button></section>
   </dialog>
-  <script src="asset/vendor/three.min.js"></script>
-  <script src="asset/vendor/d3.min.js"></script>
-  <script src="asset/world.js"></script>
-  <script src="asset/models.js"></script>
-  <script src="asset/ui/economy.js"></script>
-  <script src="asset/ui/market-routes.js"></script>
-  <script src="asset/ui/scene.js"></script>
-  <script src="asset/ui/game.js"></script>
 </body>
 </html>

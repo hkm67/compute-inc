@@ -3246,10 +3246,12 @@ globalThis.ComputeAssets = (() => {
       const canvas = document.createElement('canvas');
       canvas.width = 2048; canvas.height = 1024;
       const context = canvas.getContext('2d');
-      context.fillStyle = '#438eaf'; context.fillRect(0, 0, 2048, 1024);
       const projection = d3.geoEquirectangular().scale(2048/(2*Math.PI)).translate([1024,512]);
       context.beginPath(); d3.geoPath(projection, context)(world.land);
       context.fillStyle = '#7fa256'; context.fill();
+      const coastline = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      context.globalCompositeOperation = 'destination-over';
+      context.fillStyle = '#438eaf'; context.fillRect(0, 0, canvas.width, canvas.height);
       const texture = new T.CanvasTexture(canvas);
       texture.colorSpace = T.SRGBColorSpace;
       texture.wrapS = T.RepeatWrapping;
@@ -3272,7 +3274,13 @@ globalThis.ComputeAssets = (() => {
         for (let j = 0; j < 3; j++) center.add(new T.Vector3().fromBufferAttribute(vertices,i+j));
         center.normalize();
         const coordinate = [Math.atan2(center.x,center.z)*180/Math.PI,Math.asin(center.y)*180/Math.PI];
-        if (d3.geoContains(world.land,coordinate)) for (let j = 0; j < 3; j++) land.push(vertices.getX(i+j),vertices.getY(i+j),vertices.getZ(i+j));
+        // Solid ocean and land pixels already classify the face. Resolve blended coastal pixels against the source polygons.
+        const [px, py] = projection(coordinate);
+        const x = (Math.floor(px) + canvas.width) % canvas.width;
+        const y = Math.max(0, Math.min(canvas.height - 1, Math.floor(py)));
+        const coverage = coastline[(y * canvas.width + x) * 4 + 3];
+        const isLand = coverage === 255 || (coverage > 0 && d3.geoContains(world.land, coordinate));
+        if (isLand) for (let j = 0; j < 3; j++) land.push(vertices.getX(i+j),vertices.getY(i+j),vertices.getZ(i+j));
       }
       raised.dispose();
       const landGeometry = new T.BufferGeometry();

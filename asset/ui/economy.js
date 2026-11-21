@@ -221,7 +221,7 @@ const Game = (() => {
     if (!s.incident && s.elapsed >= s.nextIncidentAt && s.jobs < TOTAL_JOBS * .95) spawnIncident(s);
   }
   return {
-    TOTAL_JOBS, MARKET_POOLS, capabilities, upgrades, countries, createState,
+    TOTAL_JOBS, MARKET_POOLS, capabilities, upgrades, countries, startCountries, createState,
     currentCountry, market, distribution, weightedJobs, capacity, speed, earnings,
     income, limit, cost, canPurchase, purchase, selectCountry, bottleneck,
     spawnIncident, resolveIncident, payResponse, tapProtest, setHolding,
