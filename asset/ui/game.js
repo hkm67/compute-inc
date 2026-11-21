@@ -1,6 +1,6 @@
 'use strict';
 
-function createGame(onRestart) {
+function createGame(showStart) {
   const $ = id => document.getElementById(id);
   const catalog = ComputeAssets.landmarks;
   const cityById = new Map(catalog.map(site => [site.id, site]));
@@ -32,7 +32,6 @@ function createGame(onRestart) {
   const acquisitions = new Set();
   let view = 'globe', selected = 'paris', panel, opener, centerOnReturn = false;
   let lastFrame, lastPaint = 0, toastUntil = 0, milestoneIndex = 0, displayedWin = false;
-  let animationFrame;
 
   function number(value) {
     const format = value < 1e6 ? whole : compact;
@@ -240,7 +239,8 @@ function createGame(onRestart) {
   }
   $('build-plot').addEventListener('click', () => { if (view === 'city') purchase('capacity'); });
   action.addEventListener('click', () => {
-    if (state.offerings.length) openPanel('markets');
+    if (state.phase === 'start') showStart();
+    else if (state.offerings.length) openPanel('markets');
     else if (view === 'globe') enterCity(selected);
     else purchase('capacity');
   });
@@ -271,7 +271,6 @@ function createGame(onRestart) {
     render();
   });
   $('restart').addEventListener('click', () => {
-    cancelAnimationFrame(animationFrame);
     state = freshState();
     renderPlaybackRate();
     acquisitions.clear();
@@ -290,7 +289,8 @@ function createGame(onRestart) {
     scene.reset();
     sheet.close();
     text($('headline'), 'Choose a country to start automating jobs.');
-    onRestart();
+    showGlobe();
+    showStart();
   });
 
   function renderMarkets() {
@@ -315,12 +315,11 @@ function createGame(onRestart) {
     }
   }
   function selectMarket(id) {
-    const starting = state.phase === 'start';
     const oldMarket = state.currentCountry;
     if (!Game.selectCountry(state, id)) return;
     if (sheet.open) sheet.close();
     const jobs = Game.MARKET_POOLS[state.countries.length - 1];
-    if (starting || view !== 'globe') showGlobe();
+    if (view !== 'globe') showGlobe();
     const label = Game.currentCountry(state).name + ' · +' + number(jobs) + ' market jobs';
     scene.openMarket(state.currentCountry, oldMarket, label);
     text($('headline'), label);
@@ -328,7 +327,6 @@ function createGame(onRestart) {
     render();
     action.focus({ preventScroll: true });
     lastFrame = performance.now();
-    if (starting) animationFrame = requestAnimationFrame(frame);
   }
   $('country-options').addEventListener('click', event => {
     const button = event.target.closest('[data-country]');
@@ -614,7 +612,7 @@ function createGame(onRestart) {
   function advanceClock(now) {
     const seconds = Math.min(.25, Math.max(0, (now - (lastFrame ?? now)) / 1000));
     lastFrame = Math.max(lastFrame ?? now, now);
-    if (document.hidden || seconds === 0) return;
+    if (document.hidden || state.phase === 'start' || seconds === 0) return;
     // Small simulation steps preserve incident timing. A held button uses wall time.
     const inputStep = seconds / state.playbackRate;
     for (let i = 0; i < state.playbackRate; i++) {
@@ -628,9 +626,11 @@ function createGame(onRestart) {
     if (!document.hidden) {
       scene.frame(now, state.elapsed, state.phase === 'running' && !state.paused && state.incident?.type !== 'power', sheet.open);
       showPayout(now, state.earned - earnedBefore);
-      if (now - lastPaint >= 80) { render(); lastPaint = now; }
+      if (state.phase !== 'start' && now - lastPaint >= 80) { render(); lastPaint = now; }
     }
-    animationFrame = requestAnimationFrame(frame);
+    requestAnimationFrame(frame);
   }
+  showGlobe();
+  requestAnimationFrame(frame);
   return selectMarket;
 }

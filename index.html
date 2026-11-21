@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#a5d7dc">
   <title>Compute, Inc.</title>
-  <link rel="stylesheet" href="asset/ui/game.css">
+  <link rel="stylesheet" href="asset/ui/game.css?v=2">
   <link rel="preload" href="asset/ui/barlow.woff2" as="font" type="font/woff2" crossorigin>
   <script defer src="asset/ui/economy.js"></script>
-  <script defer src="asset/ui/quick-start.js"></script>
+  <script defer src="asset/ui/quick-start.js?v=2"></script>
 </head>
 <body>
 <svg class="symbols" aria-hidden="true"><defs>
@@ -18,19 +18,8 @@
 <symbol id="rack" viewBox="0 0 24 24"><path d="M4 2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm1 3v3h3V5zm7 .7v1.6h7V5.7zM4 13h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2zm1 3v3h3v-3zm7 .7v1.6h7v-1.6z" fill-rule="evenodd"/></symbol>
 <symbol id="pin" viewBox="0 0 24 24"><path d="M12 1a8 8 0 0 0-8 8c0 5 8 14 8 14s8-9 8-14a8 8 0 0 0-8-8zm0 4.7A3.3 3.3 0 1 1 12 12a3.3 3.3 0 0 1 0-6.3z" fill-rule="evenodd"/></symbol>
 </defs></svg>
-  <main id="quick-start" aria-labelledby="start-title">
-    <div class="start-copy">
-      <h1 id="start-title">Compute, Inc.</h1>
-      <p>Build datacentres. Replace every job. Keep the money.</p>
-      <h2 id="market-prompt">Choose your first market</h2>
-      <div id="start-countries" role="group" aria-labelledby="market-prompt"></div>
-      <p id="start-status" role="status"></p>
-      <noscript>Enable JavaScript to play.</noscript>
-    </div>
-    <div class="start-globe" aria-hidden="true"></div>
-  </main>
-  <main id="game" data-view="globe" aria-label="Compute, Inc." hidden>
-    <div id="stage">
+  <main id="game" data-view="globe" data-preview aria-label="Compute, Inc.">
+    <div id="stage" inert>
       <div id="paris-street" aria-hidden="true" hidden><div id="new-bays"></div><div id="street-crew" hidden><img loading="lazy" src="asset/ui/worker.webp" alt=""></div></div>
       <canvas id="scene" tabindex="0" aria-label="World globe. Drag or use the arrow keys to spin. Press Enter to visit the selected city."></canvas>
       <button id="city-flag" class="scene-flag" type="button">Paris</button>
@@ -43,18 +32,28 @@
       <span id="fallback-note" hidden></span>
     </div>
     <header class="hud" aria-label="Global economy">
-      <button id="game-speed" type="button" aria-label="Game speed 1×. Switch to 2×" title="Game speed 1×. Switch to 2×"><strong id="speed-value">1×</strong><span>Speed</span></button>
+      <button id="game-speed" disabled type="button" aria-label="Game speed 1×. Switch to 2×" title="Game speed 1×. Switch to 2×"><strong id="speed-value">1×</strong><span>Speed</span></button>
       <div class="wallet"><div class="cash" id="money" aria-label="Spendable cash">$20</div><div class="rate"><span id="income">$0</span><span id="rate-unit"> / sec</span></div><small id="fine-rate" hidden></small></div>
       <div class="goal"><div class="dial" id="progress" role="progressbar" aria-label="World unemployment" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="percent">0%</span></div><span>World<br>unemployment</span></div>
     </header>
     <button id="incident-alert" type="button" hidden aria-haspopup="dialog"></button>
     <p id="toast" role="status" hidden></p>
     <nav class="actions" aria-label="Game controls">
-      <button type="button" id="navigate" class="shortcut"><svg class="ico" aria-hidden="true"><use href="#index"/></svg><span>Cities</span></button>
-      <button type="button" id="upgrades" class="shortcut"><svg class="ico" aria-hidden="true"><use href="#upgrade"/></svg><span>Upgrades</span></button>
+      <button type="button" id="navigate" disabled class="shortcut"><svg class="ico" aria-hidden="true"><use href="#index"/></svg><span>Cities</span></button>
+      <button type="button" id="upgrades" disabled class="shortcut"><svg class="ico" aria-hidden="true"><use href="#upgrade"/></svg><span>Upgrades</span></button>
       <button type="button" id="action" class="primary"><svg class="ico" aria-hidden="true"><use href="#pin"/></svg><span><b id="action-label">Choose country</b><small id="action-detail" hidden></small></span></button>
     </nav>
   </main>
+  <dialog id="quick-start" aria-labelledby="start-title" aria-describedby="start-instruction">
+    <div class="dispatch-head">
+      <img src="asset/ui/bot.webp" width="38" height="47" alt="">
+      <div><h1 id="start-title" tabindex="-1" autofocus>Whose jobs go first?</h1><p id="start-instruction">Pick your first market.</p></div>
+      <button type="button" id="close-start" aria-label="Close notification">×</button>
+    </div>
+    <div id="start-countries" role="group" aria-labelledby="start-title"></div>
+    <p id="start-status" role="status"></p>
+  </dialog>
+  <noscript>Enable JavaScript to play Compute, Inc.</noscript>
   <dialog id="sheet" aria-labelledby="sheet-title">
     <div class="sheet-head"><h1 id="sheet-title">Cities</h1><button id="dismiss" type="button" aria-label="Close panel">×</button></div>
     <section id="cities-panel" hidden><ul id="cities"></ul></section>
