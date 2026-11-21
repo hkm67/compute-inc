@@ -3131,7 +3131,9 @@ globalThis.ComputeAssets = (() => {
       const localOffset = cityIds.indexOf(city);
       district.add(localScenery(city));
       if (includeLandmark) {
-        place(district, createLandmark(city, { automated: takeover >= 75 }), 0, .06, -.55);
+        const landmark = createLandmark(city, { automated: takeover >= 75 });
+        landmark.userData.cityLandmark = true;
+        place(district, landmark, 0, .06, -.55);
       }
       const converted = Math.floor(takeover * plots.length / 100);
       plots.forEach(([x, z, rotation = 0], index) => {
@@ -3165,7 +3167,11 @@ globalThis.ComputeAssets = (() => {
       box(g, 4.65, .035, 3.52, 0xcbd1b4, 0, .035, -.45);
       box(g, .48, .045, 6.85, 0x7cb5c4, -4.25, .018, 0);
       box(g, .8, .08, .7, 0xc8c1ac, -4.25, .04, 1.58);
-      if (includeLandmark) place(g, createLandmark(city, { automated: takeover >= 75 }), 0, .06, -.45);
+      if (includeLandmark) {
+        const landmark = createLandmark(city, { automated: takeover >= 75 });
+        landmark.userData.cityLandmark = true;
+        place(g, landmark, 0, .06, -.45);
+      }
       const replaced = Math.floor(takeover / 100 * lots.length);
       lots.forEach(([x,z], index) => place(g, index < replaced ? createDatacentre({variant:index}) : createHouse(city, index), x, 0, z, index < replaced ? .82 + (index % 2) * .1 : 1));
       for (const [x,z] of [[-3.9,2.8],[4,-2.5],[.4,3],[-.3,-2.95],[-3.8,-1.15]]) place(g, createTree(), x, 0, z);

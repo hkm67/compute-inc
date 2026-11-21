@@ -262,6 +262,7 @@
     displayedWin = false;
     centerOnReturn = true;
     lastFrame = performance.now();
+    scene.reset();
     sheet.close();
     text($('headline'), 'Choose a country to start automating jobs.');
     showGlobe();
@@ -587,7 +588,7 @@
     if (!document.hidden) {
       const earnedBefore = state.earned;
       Game.tick(state, Math.min(seconds, .25));
-      scene.frame(now, state.elapsed, state.phase === 'running' && !state.paused && state.incident?.type !== 'power');
+      scene.frame(now, state.elapsed, state.phase === 'running' && !state.paused && state.incident?.type !== 'power', sheet.open);
       showPayout(now, state.earned - earnedBefore);
       if (now - lastPaint >= 80) { render(); lastPaint = now; }
     }

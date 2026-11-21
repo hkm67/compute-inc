@@ -1,10 +1,13 @@
 'use strict';
 
-// The view owns cameras and geometry. The economy keeps running when the camera moves.
 function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSelect }) {
   const T = THREE;
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  const coarsePointer = matchMedia('(pointer: coarse)').matches;
   const catalog = ComputeAssets.landmarks;
+  const qualityRatios = [1, 1.25, 1.5, 2];
+  let qualityIndex = coarsePointer ? 2 : 3;
+  let pixelRatio = Math.min(devicePixelRatio, qualityRatios[qualityIndex]);
   let renderer;
   try { renderer = new T.WebGLRenderer({ canvas, antialias: true, alpha: true }); }
   catch { renderer = null; }
@@ -28,27 +31,46 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
   const parisPickets = [[.265,.683],[.465,.628],[.665,.577]];
   const yardPickets = [[.24,.57],[.48,.68],[.72,.58]];
   const pavementStops = [2,4,7];
-  let routes, marketFlight, marketShownUntil = 0, marketHub;
+  let routes, marketFlight, marketShownUntil = 0, marketHub, globeSites;
   let crewPace = 1, capability = 0;
   let protestCity, protestMarker;
   const fallbackNote = document.getElementById('fallback-note');
+  const cityCache = new Map();
+  const bayImages = [];
   let globe, district, plots = [], walkers = [], markers = [];
   let view = 'globe', selected = 'paris', width = 1, height = 1;
+  let rendererWidth = 0, rendererHeight = 0;
   let cityZoom = 1, globeZoom = 1, yaw = -.29, pitch = .24;
   let streetCenterY = 0;
   let hallsBuilt = 0, streetVisible = false;
-  let departure, anchor, buildingDrop, needsDraw = true, nextWalkFrame = 0;
+  let departure, anchor, buildingDrop, needsDraw = true, nextWalkFrame = 0, nextRenderAt = 0;
   let gestureMoved = false, pinchDistance = 0;
+  let queuedZoom = 1, zoomQueued = false, shadowDirty = true;
+  let lastQualityChange = 0, renderCost = 5;
+  let cityBuilds = 0, plotReplacements = 0, rendererResizes = 0;
 
-  if (renderer) {
-    kit.configureRenderer(renderer, devicePixelRatio);
-    kit.addLighting(scene);
+  function buildGlobe() {
+    if (!renderer || globe) return;
     globe = kit.createGlobe(d3, ComputeWorld);
+    globe.visible = view === 'globe';
     scene.add(globe);
     routes = createMarketRoutes(kit, globe);
     markers = globe.children.filter(child => child.userData.city);
-    // Leave breathing room between the miniatures at the edge of the planet.
     for (const marker of markers) marker.scale.setScalar(marker.userData.city === 'paris' ? .79 : .65);
+    syncOperatingSites();
+    protestMarker = markers.find(marker => marker.userData.city === protestCity);
+    stage.classList.remove('illustrated');
+    shadowDirty = true;
+    needsDraw = true;
+    if (view === 'globe') { layout(); draw(); }
+  }
+  if (renderer) {
+    kit.configureRenderer(renderer, pixelRatio);
+    renderer.shadowMap.autoUpdate = false;
+    kit.addLighting(scene);
+    stage.classList.add('illustrated');
+    if ('requestIdleCallback' in window) requestIdleCallback(buildGlobe, { timeout: 150 });
+    else setTimeout(buildGlobe, 0);
   } else {
     stage.classList.add('illustrated');
   }
@@ -94,6 +116,13 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
     cityZoom = 1;
     layout();
   }
+  function resizeRenderer() {
+    if (!renderer || (width === rendererWidth && height === rendererHeight)) return;
+    renderer.setSize(width, height, false);
+    rendererWidth = width;
+    rendererHeight = height;
+    rendererResizes++;
+  }
   function layout() {
     width = stage.clientWidth || 1;
     height = stage.clientHeight || 1;
@@ -124,7 +153,7 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
       rivalSite.style.left = (width / 2 + (yard ? .28 : -.08) * imageWidth) + 'px';
       rivalSite.style.top = (streetCenterY + (yard ? .23 : .185) * imageHeight) + 'px';
     }
-    if (renderer) renderer.setSize(width, height, false);
+    resizeRenderer();
     const half = view === 'globe' ? Math.max(3.15, 2.25 / aspect) / globeZoom
       : Math.max(3.65, 3.05 / aspect) / cityZoom;
     if (view === 'globe') {
@@ -154,10 +183,32 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
     flag.style.left = ((point.x + 1) * width / 2) + 'px';
     flag.style.top = ((1 - point.y) * height / 2 - 4) + 'px';
   }
+  function setQuality(index, now) {
+    const nextIndex = T.MathUtils.clamp(index, 0, qualityRatios.length - 1);
+    const nextRatio = Math.min(devicePixelRatio, qualityRatios[nextIndex]);
+    qualityIndex = nextIndex;
+    if (nextRatio === pixelRatio) return;
+    pixelRatio = nextRatio;
+    kit.configureRenderer(renderer, pixelRatio);
+    renderer.shadowMap.autoUpdate = false;
+    // Three.js resizes the drawing buffer when configureRenderer sets the pixel ratio.
+    shadowDirty = true;
+    needsDraw = true;
+    lastQualityChange = now;
+  }
+  function adaptQuality(now) {
+    if (now - lastQualityChange < 6000) return;
+    if (renderCost > 11 && qualityIndex > 0) setQuality(qualityIndex - 1, now);
+    else if (renderCost < 3.5 && qualityIndex < qualityRatios.length - 1 && pixelRatio < devicePixelRatio) setQuality(qualityIndex + 1, now);
+  }
   function draw() {
-    if (!renderer || streetVisible) { needsDraw = false; return; }
-    if (globe.visible) globe.rotation.set(pitch, yaw, 0, 'XYZ');
+    if (!renderer || streetVisible || (view === 'globe' && !globe)) { needsDraw = false; return; }
+    const started = performance.now();
+    if (globe?.visible) globe.rotation.set(pitch, yaw, 0, 'XYZ');
+    renderer.shadowMap.needsUpdate = view === 'globe' || shadowDirty || Boolean(buildingDrop);
     renderer.render(scene, camera);
+    shadowDirty = false;
+    renderCost = renderCost * .9 + (performance.now() - started) * .1;
     if (view === 'globe') {
       const marker = markers.find(item => item.userData.city === selected);
       marker.getWorldPosition(worldPoint);
@@ -187,13 +238,13 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
     needsDraw = false;
   }
   function zoomIntoLandmark(id) {
-    if (!renderer || reducedMotion.matches || view !== 'globe') return;
+    if (!renderer || !globe || reducedMotion.matches || view !== 'globe') return;
     const marker = markers.find(item => item.userData.city === id);
+    if (!marker) return;
     marker.getWorldPosition(point);
     if (point.z < .4) return;
     point.project(camera);
     const origin = ((point.x + 1) * 50) + '% ' + ((1 - point.y) * 50) + '%';
-    // Keep the outgoing globe for the descent while the city takes over the live canvas.
     const still = document.createElement('canvas');
     still.width = width;
     still.height = height;
@@ -222,7 +273,25 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
     stage.animate([{ opacity: .35, transform: 'scale(' + (inward ? .93 : 1.06) + ')' },
       { opacity: 1, transform: 'scale(1)' }], { duration: 320, easing: 'ease-out' });
   }
+  function syncOperatingSites() {
+    if (!globeSites) return;
+    for (const marker of markers) {
+      const built = globeSites[marker.userData.city]?.halls || 0;
+      let rack = marker.getObjectByName('operating-site');
+      if (built && !rack) {
+        rack = kit.createDatacentre();
+        rack.name = 'operating-site';
+        rack.position.set(-.27, .025, .27);
+        rack.scale.setScalar(.22);
+        marker.add(rack);
+        shadowDirty = true;
+      }
+      if (rack) rack.visible = built > 0;
+    }
+  }
   function showGlobe(id, center = false, sites) {
+    if (sites) globeSites = sites;
+    finishDrop();
     departure?.remove();
     const returning = view === 'city';
     view = 'globe';
@@ -238,22 +307,9 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
     capacityFlag.hidden = true;
     fallbackNote.hidden = true;
     if (renderer) {
-      if (sites) {
-        for (const marker of markers) {
-          const built = sites[marker.userData.city]?.halls || 0;
-          let rack = marker.getObjectByName('operating-site');
-          if (built && !rack) {
-            rack = kit.createDatacentre();
-            rack.name = 'operating-site';
-            rack.position.set(-.27, .025, .27);
-            rack.scale.setScalar(.22);
-            marker.add(rack);
-          }
-          if (rack) rack.visible = built > 0;
-        }
-      }
+      if (sites) syncOperatingSites();
       if (district) district.visible = false;
-      globe.visible = true;
+      if (globe) globe.visible = true;
       camera.position.set(0, 0, 10);
       camera.lookAt(0, 0, 0);
       layout();
@@ -266,18 +322,108 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
     if (returning) approach(false);
   }
   function updateBays(count, spots, purchased) {
-    bays.replaceChildren();
-    for (let i = 0; i < Math.min(count, 4); i++) {
-      const img = document.createElement('img');
-      const tiers = Math.ceil((count - i) / 4);
-      img.src = 'asset/ui/server-bay.webp';
-      img.alt = '';
+    for (let i = 0; i < spots.length; i++) {
+      if (i >= count) { bayImages[i]?.remove(); continue; }
+      if (!bayImages[i]) {
+        const img = document.createElement('img');
+        img.src = 'asset/ui/server-bay.webp';
+        img.alt = '';
+        bayImages[i] = img;
+      }
+      const img = bayImages[i];
+      if (!img.parentNode) bays.append(img);
       img.style.left = (spots[i][0] * 100) + '%';
       img.style.top = (spots[i][1] * 100) + '%';
+      const tiers = Math.ceil((count - i) / 4);
       img.style.setProperty('--tiers', String(1 + .22 * (tiers - 1)));
-      if (purchased && i === (count - 1) % 4) img.classList.add('installed');
-      bays.append(img);
+      img.classList.remove('installed');
+      if (purchased && i === (count - 1) % 4) {
+        void img.offsetWidth;
+        img.classList.add('installed');
+      }
     }
+  }
+  function replacePart(parent, oldPart, replacement) {
+    replacement.position.copy(oldPart.position);
+    replacement.quaternion.copy(oldPart.quaternion);
+    replacement.scale.copy(oldPart.scale);
+    parent.remove(oldPart);
+    kit.clear(oldPart);
+    parent.add(replacement);
+    return replacement;
+  }
+  function trimCache() {
+    while (cityCache.size > 2) {
+      const [id, entry] = cityCache.entries().next().value;
+      if (entry.group === district) {
+        cityCache.delete(id);
+        cityCache.set(id, entry);
+        continue;
+      }
+      scene.remove(entry.group);
+      kit.clear(entry.group);
+      cityCache.delete(id);
+    }
+  }
+  function updateDistrict(entry, target, robotCount) {
+    const previous = entry.takeover;
+    if (previous === target && entry.robotCount === robotCount) return;
+    const localOffset = ComputeAssets.cityIds.indexOf(entry.id);
+    const oldConverted = Math.floor(previous * entry.plots.length / 100);
+    const newConverted = Math.floor(target * entry.plots.length / 100);
+    if ((previous < 75) !== (target < 75) && entry.landmark) {
+      entry.landmark = replacePart(entry.group, entry.landmark, kit.createLandmark(entry.id, { automated: target >= 75 }));
+      entry.landmark.userData.cityLandmark = true;
+    }
+    for (let index = Math.min(oldConverted, newConverted); index < Math.max(oldConverted, newConverted); index++) {
+      const oldPlot = entry.plots[index];
+      const replacement = index < newConverted ? kit.createDatacentre({ variant: localOffset + index }) : kit.createHouse(entry.id, index);
+      replacePart(entry.group, oldPlot, replacement);
+      replacement.scale.setScalar(index < newConverted ? .88 + (index % 2) * .08 : 1);
+      replacement.userData.plot = index;
+      entry.plots[index] = replacement;
+      plotReplacements++;
+    }
+    entry.walkers.forEach((walker, index) => {
+      const robot = index < robotCount;
+      if (walker.robot === robot) return;
+      const replacement = kit.createCharacter({ robot, variant: localOffset + index });
+      walker.part = replacePart(entry.group, walker.part, replacement);
+      walker.robot = robot;
+    });
+    entry.takeover = target;
+    entry.robotCount = robotCount;
+    shadowDirty = true;
+    needsDraw = true;
+  }
+  function getDistrict(id, takeover, robotCount) {
+    let entry = cityCache.get(id);
+    if (!entry) {
+      const group = kit.createCity(id, { takeover, robotCount });
+      const cityPlots = group.children.filter(part => Number.isInteger(part.userData.plot)).sort((a, b) => a.userData.plot - b.userData.plot);
+      const cityWalkers = group.children.filter(part => part.name === 'human' || part.name === 'robot')
+        .map(part => ({ part, x: part.position.x, y: part.position.y, robot: part.name === 'robot' }));
+      entry = { id, group, plots: cityPlots, walkers: cityWalkers, landmark: group.children.find(part => part.userData.cityLandmark), takeover, robotCount };
+      scene.add(group);
+      cityCache.set(id, entry);
+      cityBuilds++;
+    } else {
+      cityCache.delete(id);
+      cityCache.set(id, entry);
+      updateDistrict(entry, takeover, robotCount);
+    }
+    if (district && district !== entry.group) district.visible = false;
+    district = entry.group;
+    trimCache();
+    district.visible = true;
+    plots = entry.plots;
+    walkers = entry.walkers;
+  }
+  function finishDrop() {
+    if (!buildingDrop) return;
+    buildingDrop.part.position.y = buildingDrop.y;
+    buildingDrop = null;
+    shadowDirty = true;
   }
   function showCity(id, halls, purchased = false) {
     const entering = view !== 'city' || selected !== id;
@@ -302,18 +448,32 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
       if (entering) approach(true);
       return;
     }
-    globe.visible = false;
-    if (district) { scene.remove(district); kit.clear(district); }
-    district = kit.createCity(id, { takeover: Math.min(100, halls * 10), robotCount: [0, 2, 5, 9][capability] });
-    scene.add(district);
-    plots = district.children.filter(part => Number.isInteger(part.userData.plot));
+    if (globe) globe.visible = false;
+    finishDrop();
+    const takeover = Math.min(100, halls * 10);
+    const robotCount = [0, 2, 5, 9][capability];
+    if (district?.name === 'tokyo-district') {
+      scene.remove(district);
+      kit.clear(district);
+      district = null;
+    }
+    if (id === 'tokyo') {
+      if (district) district.visible = false;
+      district = kit.createCity(id, { takeover, robotCount });
+      scene.add(district);
+      plots = [];
+      walkers = district.children.filter(part => part.name === 'human' || part.name === 'robot')
+        .map(part => ({ part, x: part.position.x, y: part.position.y }));
+      cityBuilds++;
+    } else {
+      getDistrict(id, takeover, robotCount);
+    }
     anchor = plots[Math.min(halls || 1, plots.length) - 1];
-    if (halls > plots.length) anchor.scale.y *= 1 + .25 * (halls - plots.length);
-    walkers = district.children.filter(part => part.name === 'human' || part.name === 'robot')
-      .map(part => ({ part, x: part.position.x, y: part.position.y }));
-    buildingDrop = purchased && !reducedMotion.matches ? { part: anchor, y: anchor.position.y, start: performance.now() } : null;
+    if (anchor) anchor.scale.y = anchor.scale.x * (1 + .25 * Math.max(0, halls - plots.length));
+    buildingDrop = purchased && anchor && !reducedMotion.matches ? { part: anchor, y: anchor.position.y, start: performance.now() } : null;
     camera.position.set(5, 8.2, 13);
     camera.lookAt(0, 1, 0);
+    shadowDirty = true;
     layout();
     draw();
     if (entering) approach(true);
@@ -326,6 +486,7 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
     marketFlag.hidden = true;
   }
   function openMarket(id, previous, label) {
+    buildGlobe();
     const animate = !!renderer && !reducedMotion.matches;
     routes?.connect(id, previous, animate);
     marketFlag.textContent = label;
@@ -372,20 +533,29 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
     needsDraw = true;
   }
   function zoom(factor) {
-    if (view === 'globe') globeZoom = T.MathUtils.clamp(globeZoom * factor, .8, 1.5);
-    else cityZoom = T.MathUtils.clamp(cityZoom * factor, streetVisible ? 1 : .7, 1.6);
-    layout();
+    queuedZoom *= factor;
+    if (zoomQueued) return;
+    zoomQueued = true;
+    requestAnimationFrame(() => {
+      const factor = queuedZoom;
+      queuedZoom = 1;
+      zoomQueued = false;
+      if (view === 'globe') globeZoom = T.MathUtils.clamp(globeZoom * factor, .8, 1.5);
+      else cityZoom = T.MathUtils.clamp(cityZoom * factor, streetVisible ? 1 : .7, 1.6);
+      layout();
+    });
   }
   function pick(x, y) {
     const rect = canvas.getBoundingClientRect();
     raycaster.setFromCamera({ x: 2 * (x - rect.left) / width - 1, y: 1 - 2 * (y - rect.top) / height }, camera);
-    for (const hit of raycaster.intersectObject(globe, true)) {
+    for (const hit of raycaster.intersectObjects(markers, true)) {
       let part = hit.object;
-      if (part.name === 'ocean-and-coastline') break;
       while (part && !part.userData.city) part = part.parent;
-      if (part) return part.userData.city;
+      if (part) {
+        part.getWorldPosition(worldPoint);
+        if (worldPoint.z > .45) return part.userData.city;
+      }
     }
-    // Give small pins a fingertip-sized hit area. Only the near hemisphere is selectable.
     let closest, distance = 22;
     for (const marker of markers) {
       marker.getWorldPosition(point);
@@ -482,7 +652,7 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
   });
   new ResizeObserver(layout).observe(stage);
   let previousTime = 0, walkingTime = 0;
-  function frame(now, elapsed, moving) {
+  function frame(now, elapsed, moving, covered = false) {
     if (marketFlight) {
       const t = Math.min(1, (now - marketFlight.start) / 850);
       const ease = t * t * (3 - 2 * t);
@@ -500,7 +670,7 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
     if (moving) walkingTime += Math.max(0, elapsed - previousTime) * crewPace;
     previousTime = elapsed;
     if (!renderer) return;
-    if (view === 'city' && !streetVisible && !reducedMotion.matches && now >= nextWalkFrame && moving) {
+    if (view === 'city' && !streetVisible && !covered && !reducedMotion.matches && now >= nextWalkFrame && moving) {
       nextWalkFrame = now + 1000 / 24;
       walkers.forEach(({ part, x, y }, i) => {
         part.position.x = x + .3 * Math.sin(walkingTime * .85 + i);
@@ -509,12 +679,54 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
       needsDraw = true;
     }
     if (view === 'city' && buildingDrop) {
-      const t = Math.min(1, (now - buildingDrop.start) / 350);
-      buildingDrop.part.position.y = buildingDrop.y + .65 * (1 - t) ** 2;
-      if (t === 1) buildingDrop = null;
+      if (covered) {
+        finishDrop();
+      } else {
+        const t = Math.min(1, (now - buildingDrop.start) / 350);
+        buildingDrop.part.position.y = buildingDrop.y + .65 * (1 - t) ** 2;
+        if (t === 1) finishDrop();
+      }
       needsDraw = true;
     }
-    if (needsDraw) draw();
+    const renderInterval = view === 'city' ? 1000 / 30 : 0;
+    if (needsDraw && now >= nextRenderAt) {
+      draw();
+      nextRenderAt = now + renderInterval;
+      if (!covered) adaptQuality(now);
+    }
   }
-  return { showCity, showGlobe, frame, openMarket, resetMarkets, setOperations, setProtestCity, focusDistrict };
+  function reset() {
+    departure?.remove();
+    const uncachedDistrict = district && !Array.from(cityCache.values()).some(entry => entry.group === district);
+    if (uncachedDistrict) { scene.remove(district); kit.clear(district); }
+    for (const entry of cityCache.values()) {
+      scene.remove(entry.group);
+      kit.clear(entry.group);
+    }
+    cityCache.clear();
+    district = null;
+    plots = [];
+    walkers = [];
+    anchor = null;
+    buildingDrop = null;
+    hallsBuilt = 0;
+    cityZoom = 1;
+    globeZoom = 1;
+    view = 'globe';
+    selected = 'paris';
+    updateBays(0, baySpots);
+    previousTime = walkingTime = 0;
+    needsDraw = true;
+  }
+  function stats() {
+    return {
+      cityBuilds, plotReplacements, rendererResizes, pixelRatio,
+      cachedCities: cityCache.size,
+      drawCalls: renderer?.info.render.calls ?? 0,
+      triangles: renderer?.info.render.triangles ?? 0,
+      geometries: renderer?.info.memory.geometries ?? 0
+    };
+  }
+  Object.defineProperty(canvas, '__sceneStats', { value: stats });
+  return { showCity, showGlobe, frame, reset, stats, openMarket, resetMarkets, setOperations, setProtestCity, focusDistrict };
 }
