@@ -32,7 +32,7 @@ const Game = (() => {
   const incidentTypes = ['protestors', 'regulators', 'corporate', 'power'];
   function createState(options = {}) {
     return {
-      phase: 'start', money: 20, earned: 0, jobs: 0, elapsed: 0,
+      phase: 'start', money: 20, earned: 0, jobs: 0, elapsed: 0, playbackRate: 1,
       levels: { capacity: 0, speed: 0, income: 0 }, capability: 0,
       sites: { paris: { capacity: 25, jobs: 0, halls: 1 } },
       countries: [], countryJobs: {}, currentCountry: null, offerings: [...startCountries],
@@ -176,10 +176,10 @@ const Game = (() => {
     if (s.paused && s.incident?.type === 'power') s.incident.holding = false;
     return true;
   }
-  function tick(s, seconds) {
+  function tick(s, seconds, inputSeconds = seconds) {
     if (s.phase !== 'running' || s.paused || s.won || !Number.isFinite(seconds) || seconds <= 0) return;
     if (s.incident?.type === 'power') {
-      if (s.incident.holding) holdPower(s, seconds);
+      if (s.incident.holding) holdPower(s, inputSeconds);
       s.elapsed += seconds;
       return;
     }

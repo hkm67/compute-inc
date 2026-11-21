@@ -15,6 +15,7 @@
   ];
   const sheet = $('sheet');
   const action = $('action');
+  const playbackRates = [1, 2, 5, 10];
   const querySeed = new URLSearchParams(location.search).get('seed');
   function freshState() { return Game.createState({ seed: querySeed === null ? undefined : Number(querySeed) }); }
   let state = freshState();
@@ -42,7 +43,11 @@
   function changeIcon(button, name) { button.querySelector('use').setAttribute('href', '#' + name); }
 
   const precise = value => value.toLocaleString('en-US', { maximumFractionDigits: 2 });
-  const rateCash = value => '$' + (value >= 1000 ? compact.format(value) : precise(value));
+  function rateCash(gameRate) {
+    const value = gameRate * state.playbackRate;
+    return '$' + (value >= 1000 ? compact.format(value) : precise(value));
+  }
+  const jobRate = gameRate => precise(gameRate * state.playbackRate);
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   let nextPayout = 0;
   function pulse(element) {
@@ -221,7 +226,7 @@
       const button = $('upgrades-panel').querySelector('[data-upgrade="' + type + '"]');
       if (type === 'capability' && !Game.capabilities[state.capability + 1]) $('workbench').after(result);
       else button.after(result);
-      const delta = type === 'speed' ? precise(oldSpeed) + ' → ' + precise(Game.speed(state, true)) + ' jobs/sec'
+      const delta = type === 'speed' ? jobRate(oldSpeed) + ' → ' + jobRate(Game.speed(state, true)) + ' jobs/sec'
         : type === 'income' ? '$' + precise(oldPayout) + ' → $' + precise(Game.earnings(state)) + ' base/job'
         : number(oldLimit) + ' → ' + number(Game.capabilities[state.capability].limit) + ' eligible jobs';
       result.textContent = type === 'capability' ? Game.capabilities[state.capability].name + ' · ' + delta : delta;
@@ -242,6 +247,23 @@
     const button = event.target.closest('[data-upgrade]');
     if (button) purchase(button.dataset.upgrade);
   });
+  function nextPlaybackRate() {
+    return playbackRates[(playbackRates.indexOf(state.playbackRate) + 1) % playbackRates.length];
+  }
+  function renderPlaybackRate() {
+    const speed = $('game-speed');
+    const label = 'Game speed ' + state.playbackRate + '×. Switch to ' + nextPlaybackRate() + '×';
+    text($('speed-value'), state.playbackRate + '×');
+    speed.title = label;
+    speed.setAttribute('aria-label', label);
+    speed.classList.toggle('fast', state.playbackRate > 1);
+  }
+  $('game-speed').addEventListener('click', () => {
+    advanceClock(performance.now());
+    state.playbackRate = nextPlaybackRate();
+    renderPlaybackRate();
+    render();
+  });
   $('pause').addEventListener('click', () => {
     if (!Game.setPaused(state, !state.paused)) return;
     lastFrame = performance.now();
@@ -249,6 +271,7 @@
   });
   $('restart').addEventListener('click', () => {
     state = freshState();
+    renderPlaybackRate();
     acquisitions.clear();
     rivalCity = null;
     scene.resetMarkets();
@@ -371,7 +394,7 @@
     if (lastIncident && !type) {
       const prop = $('incident-prop');
       if (panel === 'incident' && sheet.open) {
-        if (lastIncident === 'power') impact(prop, 'Grid online · +$' + precise(Game.income(state)) + '/sec', 'power');
+        if (lastIncident === 'power') impact(prop, 'Grid online · +' + rateCash(Game.income(state)) + '/sec', 'power');
         sheet.close();
       }
       if (lastIncident !== 'protestors') pulse($('income'));
@@ -379,7 +402,7 @@
         let message = incidents[lastIncident][1];
         if (lastIncident === 'protestors') {
           const limits = { capacity: 'Servers full. Build to use the restored speed.', capability: 'Upgrade AI to reach more jobs.', market: 'Open the next market to resume.' };
-          message = 'Street clear · ' + (limits[Game.bottleneck(state)] || 'Back to ' + precise(Game.speed(state)) + ' jobs/sec');
+          message = 'Street clear · ' + (limits[Game.bottleneck(state)] || 'Back to ' + jobRate(Game.speed(state)) + ' jobs/sec');
         }
         announce(message);
       }
@@ -447,7 +470,7 @@
     const button = event.target.closest('[data-target]');
     if (button && Game.tapProtest(state, Number(button.dataset.target))) {
       const unit = Game.bottleneck(state) ? ' max jobs/sec' : ' jobs/sec';
-      impact(button, '+' + precise(Game.speed(state) - lastProtestSpeed) + unit, 'scuffle');
+      impact(button, '+' + jobRate(Game.speed(state) - lastProtestSpeed) + unit, 'scuffle');
       render();
       if (event.detail === 0) ($('protest-targets').querySelector('button:enabled') || $('upgrades')).focus({ preventScroll: true });
     }
@@ -510,7 +533,7 @@
     const worker = bench.querySelector('.bench-worker');
     const image = 'asset/ui/' + (state.capability ? 'bot' : 'worker') + '.webp';
     if (worker.getAttribute('src') !== image) worker.src = image;
-    text($('bench-speed'), precise(speed) + ' jobs/sec');
+    text($('bench-speed'), jobRate(speed) + ' jobs/sec');
     text($('bench-payout'), '$' + precise(earning) + ' base/job');
     const country = Game.currentCountry(state);
     text($('market-status'), country.name
@@ -526,8 +549,8 @@
     $('pause').disabled = state.phase !== 'running';
     $('pause').setAttribute('aria-pressed', String(state.paused));
     text($('jobs'), number(state.jobs) + ' jobs replaced');
-    text($('rate'), number(Game.speed(state)) + ' jobs / sec');
-    text($('timer'), time(state.elapsed));
+    text($('rate'), jobRate(speed) + ' jobs / sec');
+    text($('timer'), time(state.elapsed) + ' game time');
   }
   function render() {
     text($('money'), cash(state.money));
@@ -575,19 +598,28 @@
     }
     if (state.won && !displayedWin) {
       displayedWin = true;
-      text($('victory-summary'), cash(state.earned) + ' earned. Planet acquired in ' + time(state.elapsed) + '.');
+      text($('victory-summary'), cash(state.earned) + ' earned. Planet acquired in ' + time(state.elapsed) + ' of game time.');
       openPanel('victory');
     }
   }
 
   document.addEventListener('visibilitychange', () => { lastFrame = performance.now(); endHold(); });
   window.addEventListener('blur', endHold);
+  function advanceClock(now) {
+    const seconds = Math.min(.25, Math.max(0, (now - (lastFrame ?? now)) / 1000));
+    lastFrame = Math.max(lastFrame ?? now, now);
+    if (document.hidden || seconds === 0) return;
+    // Small simulation steps preserve incident timing. A held button uses wall time.
+    const inputStep = seconds / state.playbackRate;
+    for (let i = 0; i < state.playbackRate; i++) {
+      Game.tick(state, seconds, inputStep);
+      if (state.paused || state.phase !== 'running') break;
+    }
+  }
   function frame(now) {
-    const seconds = lastFrame === undefined ? 0 : Math.max(0, (now - lastFrame) / 1000);
-    lastFrame = now;
+    const earnedBefore = state.earned;
+    advanceClock(now);
     if (!document.hidden) {
-      const earnedBefore = state.earned;
-      Game.tick(state, Math.min(seconds, .25));
       scene.frame(now, state.elapsed, state.phase === 'running' && !state.paused && state.incident?.type !== 'power', sheet.open);
       showPayout(now, state.earned - earnedBefore);
       if (now - lastPaint >= 80) { render(); lastPaint = now; }
