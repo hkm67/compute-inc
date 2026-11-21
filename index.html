@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#a5d7dc">
+  <title>Compute, Inc.</title>
+  <link rel="stylesheet" href="asset/ui/game.css">
+</head>
+<body>
+<svg class="symbols" aria-hidden="true"><defs>
+<symbol id="index" viewBox="0 0 24 24"><path d="m2 5 6-2 8 2.4L22 3v16l-6 2.3L8 19 2 21zm6 0v12m8-10v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="11" r="2"/></symbol>
+<symbol id="world" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.3" fill="none" stroke="currentColor" stroke-width="2.1"/><path d="m6.6 4.6 3.5-.3 1.8 1.9-1.6 2.2-2 .1-.2 2.1-2.5.5-2.4-2zm.1 7.4 3.3-.4 3.2 2.4-.5 2.6-1.6 1.2-.8 3.2-1.6-.9.2-3.3-2.3-2zm7.7-7.7 3.3 1.1 2.9 3.6-1.3 2.4-2.2-.8-1 1.3-2.9-1.4.5-3z"/></symbol>
+<symbol id="upgrade" viewBox="0 0 24 24"><path d="m12 1 8 7-3 3-5-4.4L7 11 4 8zm0 8 8 7-3 3-5-4.4L7 19l-3-3z"/><rect x="9" y="18" width="6" height="4" rx="1"/></symbol>
+<symbol id="rack" viewBox="0 0 24 24"><path d="M4 2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm1 3v3h3V5zm7 .7v1.6h7V5.7zM4 13h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2zm1 3v3h3v-3zm7 .7v1.6h7v-1.6z" fill-rule="evenodd"/></symbol>
+<symbol id="pin" viewBox="0 0 24 24"><path d="M12 1a8 8 0 0 0-8 8c0 5 8 14 8 14s8-9 8-14a8 8 0 0 0-8-8zm0 4.7A3.3 3.3 0 1 1 12 12a3.3 3.3 0 0 1 0-6.3z" fill-rule="evenodd"/></symbol>
+</defs></svg>
+  <main id="game" data-view="globe" aria-label="Compute, Inc.">
+    <div id="stage">
+      <div id="paris-street" aria-hidden="true" hidden><div id="new-bays"></div><div id="street-crew" hidden><img src="asset/ui/worker.webp" alt=""></div></div>
+      <canvas id="scene" tabindex="0" aria-label="World globe. Drag or use the arrow keys to spin. Press Enter to visit the selected city."></canvas>
+      <button id="city-flag" class="scene-flag" type="button">Paris</button>
+      <span id="capacity-flag" class="scene-flag" hidden><svg class="ico" aria-hidden="true"><use href="#rack"/></svg><span id="capacity">1/25 used</span></span>
+      <button id="build-plot" type="button" aria-label="Build servers on this plot" hidden><img src="asset/ui/server-bay.webp" alt=""><span>+</span></button>
+      <button id="rival-site" type="button" hidden><img src="asset/ui/server-bay.webp" alt=""><span class="company-sign"></span><small></small></button>
+      <div id="protest-targets" role="group" aria-label="Protest groups" hidden></div>
+      <span id="market-flag" class="scene-flag" role="status" hidden></span>
+      <button id="protest-flag" type="button" class="scene-flag" hidden>Protest</button>
+      <span id="fallback-note" hidden></span>
+    </div>
+    <header class="hud" aria-label="Global economy">
+      <div class="mark" aria-label="Compute, Inc."><svg viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="25" fill="#e1ede3"/><path d="m10 34 10-11 7 3 9-13 7 4-13 18-8-4-6 8z" fill="#2c5948"/><path d="m30 12 12 2-2 12-4-6z" fill="#e2723e"/></svg></div>
+      <div class="wallet"><div class="cash" id="money" aria-label="Spendable cash">$20</div><div class="rate"><span id="income">$0</span><span id="rate-unit"> / sec</span></div><small id="fine-rate" hidden></small></div>
+      <div class="goal"><div class="dial" id="progress" role="progressbar" aria-label="World unemployment" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="percent">0%</span></div><span>World<br>unemployment</span></div>
+    </header>
+    <button id="incident-alert" type="button" hidden aria-haspopup="dialog"></button>
+    <p id="toast" role="status" hidden></p>
+    <nav class="actions" aria-label="Game controls">
+      <button type="button" id="navigate" class="shortcut"><svg class="ico" aria-hidden="true"><use href="#index"/></svg><span>Cities</span></button>
+      <button type="button" id="upgrades" class="shortcut"><svg class="ico" aria-hidden="true"><use href="#upgrade"/></svg><span>Upgrades</span></button>
+      <button type="button" id="action" class="primary"><svg class="ico" aria-hidden="true"><use href="#pin"/></svg><span><b id="action-label">Choose country</b><small id="action-detail" hidden></small></span></button>
+    </nav>
+  </main>
+  <dialog id="sheet" aria-labelledby="sheet-title">
+    <div class="sheet-head"><h1 id="sheet-title">Cities</h1><button id="dismiss" type="button" aria-label="Close panel">×</button></div>
+    <section id="cities-panel" hidden><ul id="cities"></ul></section>
+    <section id="upgrades-panel" hidden>
+      <p id="market-status"></p>
+      <p id="status"></p>
+      <div id="workbench" aria-label="Automation throughput and payout">
+        <div class="bench-line" aria-hidden="true"><img class="bench-worker" src="asset/ui/worker.webp" alt=""><i class="job-slip"></i><img class="bench-rack" src="asset/ui/server-bay.webp" alt=""><i class="pay-slip"></i><span class="coin-roll"></span></div>
+        <div class="bench-values"><span id="bench-speed"></span><span id="bench-payout"></span></div>
+      </div>
+      <output id="upgrade-result" hidden></output>
+      <div class="shop">
+        <button type="button" data-upgrade="speed"><span><strong>Faster AI</strong><small>+65% replacement speed</small></span><b class="price"></b></button>
+        <button type="button" data-upgrade="income"><span><strong>More earnings</strong><small>+50% income per automated job</small></span><b class="price"></b></button>
+        <button type="button" data-upgrade="capability"><span><strong id="unlock-name"></strong><small id="unlock-effect"></small></span><b class="price"></b></button>
+      </div>
+      <p class="stats"><span id="jobs"></span><span id="rate"></span></p>
+      <div class="pause-row"><button type="button" id="pause" aria-pressed="false">Pause game</button><span id="timer">0:00</span></div>
+      <p id="headline">Choose a country to start automating jobs.</p>
+    </section>
+    <section id="markets-panel" hidden>
+      <p id="market-offer"></p>
+      <div class="shop" id="country-options"></div>
+    </section>
+    <section id="incident-panel" hidden>
+      <p id="incident-effect"></p>
+      <div id="encounter">
+        <button type="button" id="incident-prop" hidden><span></span></button>
+      </div>
+      <button id="incident-response" type="button"></button>
+      <progress id="power-progress" max="1.5" value="0" aria-label="Power restored" hidden></progress>
+    </section>
+    <section id="victory-panel" hidden><p id="victory-summary"></p><button type="button" id="restart">Find another planet</button></section>
+  </dialog>
+  <script src="asset/vendor/three.min.js"></script>
+  <script src="asset/vendor/d3.min.js"></script>
+  <script src="asset/world.js"></script>
+  <script src="asset/models.js"></script>
+  <script src="asset/ui/economy.js"></script>
+  <script src="asset/ui/market-routes.js"></script>
+  <script src="asset/ui/scene.js"></script>
+  <script src="asset/ui/game.js"></script>
+</body>
+</html>
