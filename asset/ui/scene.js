@@ -72,12 +72,12 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
 
   function buildGlobe() {
     if (!renderer || globe) return;
-    globe = kit.createGlobe(d3, ComputeWorld);
+    globe = kit.createGlobe(d3, ComputeWorld, { focusCity: selected });
     globe.visible = view === 'globe';
     scene.add(globe);
     routes = createMarketRoutes(kit, globe);
     markers = globe.children.filter(child => child.userData.city);
-    for (const marker of markers) marker.scale.setScalar(marker.userData.city === 'paris' ? .79 : .65);
+    for (const marker of markers) marker.scale.setScalar(.7);
     syncOperatingSites();
     protestMarker = markers.find(marker => marker.userData.city === protestCity);
     shadowDirty = true;
@@ -223,7 +223,10 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
   function draw() {
     if (!renderer || streetVisible || (view === 'globe' && !globe)) { needsDraw = false; return; }
     const started = performance.now();
-    if (globe?.visible) globe.rotation.set(pitch, yaw, 0, 'XYZ');
+    if (globe?.visible) {
+      kit.focusGlobeCity(globe, selected);
+      globe.rotation.set(pitch, yaw, 0, 'XYZ');
+    }
     renderer.shadowMap.needsUpdate = view === 'globe' || shadowDirty || Boolean(buildingDrop);
     renderer.render(scene, camera);
     shadowDirty = false;
@@ -317,10 +320,10 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
     selected = id;
     marketFlag.hidden = true;
     protestFlag.hidden = true;
-    if (center) {
+    if (center || returning) {
       const [lon, lat] = catalog.find(item => item.id === id).coordinate;
       yaw = -lon * Math.PI / 180;
-      pitch = lat * Math.PI / 180 - .38;
+      pitch = lat * Math.PI / 180 - .08;
     }
     cityFlag.hidden = false;
     capacityFlag.hidden = true;
@@ -505,13 +508,16 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
     marketShownUntil = 0;
     marketFlag.hidden = true;
   }
-  function openMarket(id, previous, label) {
+  function openMarket(city, previousCity, bonus) {
+    selected = city.id;
+    onSelect(selected);
     buildGlobe();
     const animate = !!renderer && !reducedMotion.matches;
-    routes?.connect(id, previous, animate);
-    marketFlag.textContent = label;
-    const [lon, lat] = marketHubs[id];
-    marketHub = kit.globePosition(marketHubs[id], 2.21);
+    routes?.connect(city, previousCity, animate);
+    marketFlag.textContent = city.city + ' · ' + bonus;
+    marketFlag.setAttribute('aria-label', 'Enter ' + city.city + ', ' + bonus);
+    const [lon, lat] = city.coordinate;
+    marketHub = kit.globePosition(city.coordinate, 2.21);
     const endYaw = -lon * Math.PI / 180;
     const dx = Math.atan2(Math.sin(endYaw - yaw), Math.cos(endYaw - yaw));
     const endPitch = lat * Math.PI / 180 - .08;
@@ -521,7 +527,7 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
       yaw = endYaw;
       pitch = endPitch;
       if (!renderer) {
-        drawFallbackGlobe(marketHubs[id]);
+        drawFallbackGlobe(city.coordinate);
         marketFlag.hidden = false;
         marketFlag.style.left = '50%';
         marketFlag.style.top = '50%';
@@ -568,21 +574,22 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
   }
   function pick(x, y) {
     const rect = canvas.getBoundingClientRect();
-    raycaster.setFromCamera({ x: 2 * (x - rect.left) / width - 1, y: 1 - 2 * (y - rect.top) / height }, camera);
-    for (const hit of raycaster.intersectObjects(markers, true)) {
+    if (!globe || !rect.width || !rect.height) return;
+    const localX = x - rect.left, localY = y - rect.top;
+    raycaster.setFromCamera({ x: 2 * localX / rect.width - 1, y: 1 - 2 * localY / rect.height }, camera);
+    const ocean = globe.getObjectByName('ocean-and-coastline');
+    for (const hit of raycaster.intersectObjects([ocean, ...markers, routes.network], true)) {
+      if (hit.object === ocean) break;
       let part = hit.object;
-      while (part && !part.userData.city) part = part.parent;
-      if (part) {
-        part.getWorldPosition(worldPoint);
-        if (worldPoint.z > .45) return part.userData.city;
-      }
+      while (part && part.visible && !part.userData.city) part = part.parent;
+      if (part?.visible && part.userData.city && hit.point.z > 0) return part.userData.city;
     }
     let closest, distance = 22;
     for (const marker of markers) {
       marker.getWorldPosition(point);
       if (point.z < .45) continue;
       point.project(camera);
-      const d = Math.hypot((point.x + 1) * width / 2 - x + rect.left, (1 - point.y) * height / 2 - y + rect.top);
+      const d = Math.hypot((point.x + 1) * rect.width / 2 - localX, (1 - point.y) * rect.height / 2 - localY);
       if (d < distance) { closest = marker.userData.city; distance = d; }
     }
     return closest;
@@ -591,7 +598,7 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
     let nearest, best = -Infinity;
     for (const marker of markers) {
       marker.getWorldPosition(point);
-      const score = point.z + .25 * point.y;
+      const score = point.z;
       if (score > best) { nearest = marker.userData.city; best = score; }
     }
     if (nearest) {
@@ -606,6 +613,7 @@ function createGameScene({ canvas, stage, cityFlag, capacityFlag, onEnter, onSel
   }
   canvas.addEventListener('pointerdown', event => {
     if ((!renderer && !streetVisible) || event.button !== 0) return;
+    if (marketFlight) stopMarketFocus();
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY, firstX: event.clientX, firstY: event.clientY });
     canvas.setPointerCapture(event.pointerId);
     if (pointers.size === 1) gestureMoved = false;

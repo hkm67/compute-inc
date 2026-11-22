@@ -30,7 +30,7 @@ function createGame(showStart) {
   let protestCity = null;
   let rivalCity = null;
   const acquisitions = new Set();
-  let view = 'globe', selected = 'paris', panel, opener, centerOnReturn = false;
+  let view = 'globe', selected = 'paris', panel, opener;
   let lastFrame, lastPaint = 0, toastUntil = 0, milestoneIndex = 0, displayedWin = false;
 
   function number(value) {
@@ -103,6 +103,7 @@ function createGame(showStart) {
   }
   function selectCity(id) {
     selected = id;
+    $('game').dataset.city = id;
     text($('city-flag'), cityById.get(id).city);
     $('city-flag').setAttribute('aria-label', 'Enter ' + cityById.get(id).city);
     if (view === 'globe' && state.phase === 'running') text($('action-label'), 'Enter ' + cityById.get(id).city);
@@ -114,7 +115,6 @@ function createGame(showStart) {
     clearWorldFeedback();
     view = mode;
     $('game').dataset.view = mode;
-    $('game').dataset.city = selected;
     const city = mode === 'city';
     changeIcon($('navigate'), city ? 'world' : 'index');
     text($('navigate').querySelector('span'), city ? 'Globe' : 'Cities');
@@ -125,20 +125,18 @@ function createGame(showStart) {
       : 'World globe. Drag or use the arrow keys to spin. Press Enter to visit the selected city.');
     $('toast').hidden = true;
   }
-  function enterCity(id, fromIndex = false) {
+  function enterCity(id) {
     if (sheet.open) sheet.close();
-    centerOnReturn = fromIndex;
     selectCity(id);
     changeView('city');
     scene.showCity(id, state.sites[id]?.halls ?? 0);
     render();
     $('navigate').focus({ preventScroll: true });
   }
-  function showGlobe() {
+  function showGlobe(center = false) {
     changeView('globe');
     selectCity(selected);
-    scene.showGlobe(selected, centerOnReturn, state.sites);
-    centerOnReturn = false;
+    scene.showGlobe(selected, center, state.sites);
     render();
   }
 
@@ -197,11 +195,12 @@ function createGame(showStart) {
   });
   $('cities').addEventListener('click', event => {
     const button = event.target.closest('button[data-city]');
-    if (button) enterCity(button.dataset.city, true);
+    if (button) enterCity(button.dataset.city);
   });
   $('navigate').addEventListener('click', () => view === 'city' ? showGlobe() : openPanel('cities'));
   $('upgrades').addEventListener('click', () => { openPanel('upgrades'); render(); });
   $('city-flag').addEventListener('click', () => enterCity(selected));
+  $('market-flag').addEventListener('click', () => enterCity(selected));
 
   function purchase(type) {
     const previousCapacity = Game.capacity(state);
@@ -284,12 +283,11 @@ function createGame(showStart) {
     selected = 'paris';
     milestoneIndex = 0;
     displayedWin = false;
-    centerOnReturn = true;
     lastFrame = performance.now();
     scene.reset();
     sheet.close();
     text($('headline'), 'Choose a country to start automating jobs.');
-    showGlobe();
+    showGlobe(true);
     showStart();
   });
 
@@ -320,9 +318,11 @@ function createGame(showStart) {
     if (sheet.open) sheet.close();
     const jobs = Game.MARKET_POOLS[state.countries.length - 1];
     if (view !== 'globe') showGlobe();
-    const label = Game.currentCountry(state).name + ' · +' + number(jobs) + ' market jobs';
-    scene.openMarket(state.currentCountry, oldMarket, label);
-    text($('headline'), label);
+    const country = Game.currentCountry(state);
+    const city = cityById.get(country.cityId);
+    const origin = cityById.get(oldMarket ? Game.countries[oldMarket].cityId : 'paris');
+    scene.openMarket(city, origin, '+' + number(jobs) + ' jobs');
+    text($('headline'), country.name + ' · +' + number(jobs) + ' market jobs');
     $('toast').hidden = true;
     render();
     action.focus({ preventScroll: true });
@@ -450,7 +450,7 @@ function createGame(showStart) {
   }
   function visitProtest() {
     if (!protestCity) return;
-    if (view !== 'city' || selected !== protestCity) enterCity(protestCity, true);
+    if (view !== 'city' || selected !== protestCity) enterCity(protestCity);
     scene.focusDistrict();
     $('protest-targets').querySelector('button:enabled')?.focus({ preventScroll: true });
   }
@@ -459,7 +459,7 @@ function createGame(showStart) {
     if (!state.incident) return;
     if (state.incident.type === 'protestors') { visitProtest(); return; }
     if (state.incident.type === 'corporate') {
-      if (view !== 'city' || selected !== rivalCity) enterCity(rivalCity, true);
+      if (view !== 'city' || selected !== rivalCity) enterCity(rivalCity);
       scene.focusDistrict();
       $('rival-site').focus({ preventScroll: true });
       return;
@@ -571,7 +571,8 @@ function createGame(showStart) {
     if (view === 'city') {
       const site = state.sites[selected];
       const slots = site?.capacity ?? 0;
-      text($('capacity'), slots ? number(site.jobs) + '/' + number(slots) + ' used' : 'First server site');
+      const usage = slots ? number(site.jobs) + '/' + number(slots) + ' used' : 'First server site';
+      text($('capacity'), cityById.get(selected).city + ' · ' + usage);
       $('capacity-flag').style.setProperty('--fill', (slots ? site.jobs / slots * 100 : 0) + '%');
       const price = Game.cost(state, 'capacity');
       const added = Math.min(Game.TOTAL_JOBS - Game.capacity(state), Game.capacity(state));

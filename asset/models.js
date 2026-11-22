@@ -34,7 +34,11 @@ globalThis.ComputeAssets = (() => {
     ['dubai','Dubai','Burj Al Arab',55.19,25.14,'Offshore Payroll'],
     ['moscow','Moscow','Saint Basil’s Cathedral',37.62,55.75,'The Idea Factory'],
     ['rapanui','Rapa Nui','Moai at Ahu Tongariki',-109.28,-27.13,'Your Call Is Important'],
-    ['capetown','Cape Town','Table Mountain',18.40,-33.96,'The Executive Desk']
+    ['capetown','Cape Town','Table Mountain',18.40,-33.96,'The Executive Desk'],
+    ['berlin','Berlin','Brandenburg Gate',13.38,52.52,'The Access Gate'],
+    ['dublin','Dublin','Spire of Dublin',-6.26,53.35,'Full Signal'],
+    ['seoul','Seoul','N Seoul Tower',126.99,37.55,'The Broadcast Stack'],
+    ['stockholm','Stockholm','Stockholm City Hall',18.05,59.33,'The Server Hall']
   ].map(([id,city,title,lon,lat,takeoverTitle]) => Object.freeze({id,city,title,takeoverTitle,coordinate:Object.freeze([lon,lat])})));
   const cityIds = Object.freeze([...landmarks.map(place => place.id), 'tokyo']);
 
@@ -77,7 +81,11 @@ globalThis.ComputeAssets = (() => {
     ['dubai','quay',0xd9bf91,0xcab592,0xba9a75,[0xe7cca1,0xfbdfad,0xd8bb8f]],
     ['moscow','grid',0xd9e2db,0x8f9b9c,0x6d8584,[0xe4bd9d,0xc5c8a9,0xe8d1b3]],
     ['rapanui','quay',0x92ab6a,0xb39678,0x817b71,[0xdbba8e,0xafb898,0xc99572]],
-    ['capetown','hillside',0xb3ac8e,0xa49d89,0xcc9d71,[0xfc967c,0x69c1b3,0xffca63,0x76b6d8,0xdb8dac]]
+    ['capetown','hillside',0xb3ac8e,0xa49d89,0xcc9d71,[0xfc967c,0x69c1b3,0xffca63,0x76b6d8,0xdb8dac]],
+    ['berlin','grid',0xb6b59c,0x858583,0x6f685b,[0xd8bd91,0xd3c0a6,0xc5a086]],
+    ['dublin','quay',0xb2b69b,0x86827b,0x62616a,[0xa06550,0xb7765d,0xc99574]],
+    ['seoul','grid',0xaeb69b,0x7c8485,0x526369,[0xd5c7ae,0xbac2bd,0xaaaeb0]],
+    ['stockholm','quay',0xc5bd9e,0x8b8b82,0x666560,[0xe0b05f,0xc78064,0xdcc09b]]
   ].map(([city, plan, ground, street, roof, walls]) => [city, {plan,ground,street,roof,walls}]));
 
   function createKit(T) {
@@ -981,6 +989,7 @@ globalThis.ComputeAssets = (() => {
           }
           break;
         }
+        case 'dublin':
         case 'sydney':
         case 'london': {
           const w = 1.27,
@@ -1116,6 +1125,9 @@ globalThis.ComputeAssets = (() => {
           for (const side of [-1, 1]) for (const z of [-0.16, 0.16]) b(side * 0.67, h * 0.57, z, 0.035, 0.21, 0.14, dark);
           break;
         }
+        case 'berlin':
+        case 'seoul':
+        case 'stockholm':
         case 'moscow': {
           const h = 1.11 + v * 0.14;
           block(1.32, 0.9, h, 3, 4, { band: cream });
@@ -2361,7 +2373,43 @@ globalThis.ComputeAssets = (() => {
         dubai,
         moscow,
         rapanui: rapaNui,
-        capetown: capeTown
+        capetown: capeTown,
+        berlin() {
+          block(0, .12, 0, 3.5, .24, 1.55, stone);
+          for (const z of [-.47, .47]) for (const x of [-1.4, -.84, -.28, .28, .84, 1.4]) {
+            drum(x, .98, z, .13, .11, 1.52, ivory);
+            block(x, 1.76, z, .33, .13, .32, stone);
+          }
+          block(0, 1.99, 0, 3.5, .35, 1.43, stone);
+          block(0, 2.22, 0, 1.55, .18, 1.11, trim);
+          for (const x of [-.43, -.14, .14, .43]) {
+            ellipsoid(x, 2.43, 0, .11, .18, .29, automated ? steel : green);
+            ellipsoid(x, 2.63, .19, .09, .16, .09, automated ? mint : green);
+          }
+        },
+        dublin() {
+          drum(0, .08, 0, .81, .81, .16, stone);
+          drum(0, 1, 0, .22, .13, 1.7, steel);
+          drum(0, 2.8, 0, .13, .012, 1.9, automated ? orange : 0xbacacf);
+          if (automated) for (const y of [.9, 1.4, 1.9]) drum(0, y, 0, .3, .25, .08, mint);
+        },
+        seoul() {
+          drum(0, 1.01, 0, .24, .14, 2.02, ivory);
+          drum(0, 2.06, 0, .24, .57, .24, trim);
+          drum(0, 2.34, 0, .57, .52, .36, automated ? steel : 0x748d9b);
+          drum(0, 2.59, 0, .52, .25, .15, ivory);
+          drum(0, 3.07, 0, .1, .065, .9, orange);
+          drum(0, 3.67, 0, .055, .012, .36, automated ? mint : ivory);
+        },
+        stockholm() {
+          const brick = automated ? steel : 0xac604c;
+          block(-.3, .59, 0, 2.25, 1.18, 1.1, brick);
+          block(-.3, 1.21, 0, 2.36, .14, 1.21, trim);
+          block(.98, 1.18, 0, .72, 2.36, .83, brick);
+          for (const x of [.72, 1.24]) for (const z of [-.3, .3]) block(x, 2.56, z, .11, .43, .11, ivory);
+          drum(.98, 2.87, 0, .59, .2, .34, automated ? mint : 0x54867c, 4);
+          drum(.98, 3.15, 0, .095, .02, .3, gold);
+        }
       };
       sculpt[city]();
       return bakeLandmark(sculpture, city, automated);
@@ -2437,7 +2485,9 @@ globalThis.ComputeAssets = (() => {
       athens:[1.85,1.51,1.33,1.51,1.80], singapore:[.83,.83,.83,.83,.83],
       niagara:[.65,.82,1.03,.96,.77], barcelona:[1.46,1.46,1.46,1.46,1.46],
       dubai:[.65,.77,.95,.70,.57], moscow:[1.40,1.40,1.40,1.40,1.40],
-      rapanui:[.67,.89,1.06,.87,.67], capetown:[1.83,1.55,1.35,1.49,1.69]
+      rapanui:[.67,.89,1.06,.87,.67], capetown:[1.83,1.55,1.35,1.49,1.69],
+      berlin:[1.4,1.4,1.4,1.4,1.4], dublin:[.9,.84,.85,.9,.82],
+      seoul:[1.35,1.42,1.4,1.4,1.47], stockholm:[.83,.9,.95,.9,.83]
     };
     function streetZ(city, x) {
       const u = Math.max(0, Math.min(4, (x + 4.8) / 2.4)),
@@ -2687,6 +2737,19 @@ globalThis.ComputeAssets = (() => {
         }
       }
       switch (city) {
+        case 'dublin':
+        case 'stockholm': {
+          const shore = water([1.8, 1.77, 1.8, 1.74, 1.8], 0x648f9a);
+          ribbon(shore, .18, .07, cream);
+          railing(-3.9, 3.9, 1.67, .04);
+          for (const x of [-2.4, 2.4]) tree(x, -.45, .9);
+          break;
+        }
+        case 'berlin':
+        case 'seoul':
+          square(0, -.6, 3.8, 2.4, 0xd1c8b5);
+          for (const x of [-2.75, 2.75]) { crosswalk(x, streetZ(city, x)); tree(x, .25); }
+          break;
         case 'paris': {
           const shore = water([1.72, 1.75, 1.79, 1.78, 1.76], 0x619caa);
           ribbon(shore, 0.15, 0.11, 0xc8b594);
@@ -3296,26 +3359,49 @@ globalThis.ComputeAssets = (() => {
       checkCity(focusCity);
       const roster = [...landmarks];
       if (focusCity === 'tokyo') roster.unshift({id:'tokyo', coordinate:world.cities.Tokyo});
-      const ordered = roster.filter(item => item.id === focusCity).concat(roster.filter(item => item.id !== focusCity));
-      const occupied = [];
-      for (const {id,coordinate} of ordered) {
+      for (const {id, coordinate} of roster) {
         const marker = group('city:' + id);
         marker.userData.city = id;
-        onGlobe(g,marker,coordinate);
-        // Cities too close to fit two oversized toys retain a pin. Selecting one
-        // promotes its sculpture without moving either city to a different country.
-        if (occupied.some(pos => pos.distanceTo(marker.position) < .98)) {
-          drumPin(marker);
-          continue;
-        }
-        occupied.push(marker.position);
-        const model = createLandmark(id,{automated:takeover>=75});
-        place(marker,model,0,0,0,id === focusCity ? .34 : .27);
-        if (takeover>=25) place(marker,createDatacentre(),-.34,0,.22,.18);
-        if (takeover>=50) place(marker,createDatacentre({variant:1}),.34,0,.22,.18);
-        if (takeover>=100) place(marker,createDatacentre({variant:2}),0,0,-.28,.21);
+        onGlobe(g, marker, coordinate);
       }
+      g.userData.takeover = takeover;
+      focusGlobeCity(g, focusCity);
       return g;
+    }
+
+    function focusGlobeCity(globe, city) {
+      if (globe.userData.focusCity === city) return;
+      const markers = globe.children.filter(marker => marker.userData.city);
+      const focus = markers.find(marker => marker.userData.city === city);
+      if (!focus) throw new RangeError('No globe marker for ' + city);
+      globe.userData.focusCity = city;
+      const occupied = [];
+      const takeover = globe.userData.takeover;
+      for (const marker of [focus, ...markers.filter(other => other !== focus)]) {
+        // Give the destination its sculpture; keep neighbouring sites selectable as pins.
+        const fits = !occupied.some(position => position.distanceTo(marker.position) < .98);
+        let pin = marker.getObjectByName('city-pin');
+        let sculpture = marker.getObjectByName('city-sculpture');
+        if (fits) {
+          occupied.push(marker.position);
+          if (!sculpture) {
+            sculpture = group('city-sculpture');
+            const model = createLandmark(marker.userData.city, {automated: takeover >= 75});
+            sculpture.add(model);
+            marker.add(sculpture);
+            if (takeover >= 25) place(sculpture, createDatacentre(), -.34, 0, .22, .18);
+            if (takeover >= 50) place(sculpture, createDatacentre({variant:1}), .34, 0, .22, .18);
+            if (takeover >= 100) place(sculpture, createDatacentre({variant:2}), 0, 0, -.28, .21);
+          }
+          sculpture.children[0].scale.setScalar(marker === focus ? .34 : .27);
+        } else if (!pin) {
+          pin = group('city-pin');
+          drumPin(pin);
+          marker.add(pin);
+        }
+        if (pin) pin.visible = !fits;
+        if (sculpture) sculpture.visible = fits;
+      }
     }
 
     function addLighting(scene) {
@@ -3361,7 +3447,7 @@ globalThis.ComputeAssets = (() => {
     }
 
     return { createDatacentre, createCharacter, createTree, createHouse, createLandmark,
-      createCity, createCloud, createProtest, animateProtest, globePosition, createGlobe,
+      createCity, createCloud, createProtest, animateProtest, globePosition, createGlobe, focusGlobeCity,
       addLighting, configureRenderer, clear, dispose };
   }
   return Object.freeze({ createKit, palette, cityIds, landmarks, variants });

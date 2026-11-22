@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#a5d7dc">
   <title>Compute, Inc.</title>
-  <link rel="stylesheet" href="asset/ui/game.css?v=3">
+  <link rel="stylesheet" href="asset/ui/game.css?v=4">
   <link rel="preload" href="asset/ui/barlow.woff2" as="font" type="font/woff2" crossorigin>
-  <script defer src="asset/ui/economy.js"></script>
-  <script defer src="asset/ui/quick-start.js?v=3"></script>
+  <script defer src="asset/ui/economy.js?v=4"></script>
+  <script defer src="asset/ui/quick-start.js?v=4"></script>
 </head>
 <body>
 <svg class="symbols" aria-hidden="true"><defs>
@@ -27,7 +27,7 @@
       <button id="build-plot" type="button" aria-label="Build servers on this plot" hidden><img loading="lazy" src="asset/ui/server-bay.webp" alt=""><span>+</span></button>
       <button id="rival-site" type="button" hidden><img loading="lazy" src="asset/ui/server-bay.webp" alt=""><span class="company-sign"></span><small></small></button>
       <div id="protest-targets" role="group" aria-label="Protest groups" hidden></div>
-      <span id="market-flag" class="scene-flag" role="status" hidden></span>
+      <button type="button" id="market-flag" class="scene-flag" hidden></button>
       <button id="protest-flag" type="button" class="scene-flag" hidden>Protest</button>
       <span id="fallback-note" hidden></span>
     </div>

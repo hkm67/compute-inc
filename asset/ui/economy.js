@@ -14,19 +14,19 @@ const Game = (() => {
     income: { base: 400, growth: 4.5, max: 16 }
   };
   const countries = {
-    us: { name: 'United States', style: 'Commercial', adoption: 1, value: 1.05, reach: .95 },
-    india: { name: 'India', style: 'Rapid adoption', adoption: 1.1, value: .9, reach: 1 },
-    germany: { name: 'Germany', style: 'High value', adoption: .95, value: 1.1, reach: .95 },
-    singapore: { name: 'Singapore', style: 'Highly connected', adoption: 1, value: .95, reach: 1.05 },
-    canada: { name: 'Canada', style: 'Rapid adoption', adoption: 1.05, value: .95, reach: 1 },
-    ireland: { name: 'Ireland', style: 'Commercial', adoption: 1, value: 1.05, reach: .95 },
-    japan: { name: 'Japan', style: 'Balanced', adoption: 1.05, value: 1, reach: .95 },
-    brazil: { name: 'Brazil', style: 'Rapid adoption', adoption: 1.05, value: .95, reach: 1 },
-    australia: { name: 'Australia', style: 'Highly connected', adoption: .95, value: 1, reach: 1.05 },
-    france: { name: 'France', style: 'Commercial', adoption: .95, value: 1.05, reach: 1 },
-    korea: { name: 'South Korea', style: 'Rapid adoption', adoption: 1.05, value: .9, reach: 1.05 },
-    southafrica: { name: 'South Africa', style: 'Highly connected', adoption: 1, value: .95, reach: 1.05 },
-    sweden: { name: 'Sweden', style: 'Balanced', adoption: 1, value: 1, reach: 1 }
+    us: { cityId: 'newyork', name: 'United States', style: 'Commercial', adoption: 1, value: 1.05, reach: .95 },
+    india: { cityId: 'agra', name: 'India', style: 'Rapid adoption', adoption: 1.1, value: .9, reach: 1 },
+    germany: { cityId: 'berlin', name: 'Germany', style: 'High value', adoption: .95, value: 1.1, reach: .95 },
+    singapore: { cityId: 'singapore', name: 'Singapore', style: 'Highly connected', adoption: 1, value: .95, reach: 1.05 },
+    canada: { cityId: 'niagara', name: 'Canada', style: 'Rapid adoption', adoption: 1.05, value: .95, reach: 1 },
+    ireland: { cityId: 'dublin', name: 'Ireland', style: 'Commercial', adoption: 1, value: 1.05, reach: .95 },
+    japan: { cityId: 'fujiyoshida', name: 'Japan', style: 'Balanced', adoption: 1.05, value: 1, reach: .95 },
+    brazil: { cityId: 'rio', name: 'Brazil', style: 'Rapid adoption', adoption: 1.05, value: .95, reach: 1 },
+    australia: { cityId: 'sydney', name: 'Australia', style: 'Highly connected', adoption: .95, value: 1, reach: 1.05 },
+    france: { cityId: 'paris', name: 'France', style: 'Commercial', adoption: .95, value: 1.05, reach: 1 },
+    korea: { cityId: 'seoul', name: 'South Korea', style: 'Rapid adoption', adoption: 1.05, value: .9, reach: 1.05 },
+    southafrica: { cityId: 'capetown', name: 'South Africa', style: 'Highly connected', adoption: 1, value: .95, reach: 1.05 },
+    sweden: { cityId: 'stockholm', name: 'Sweden', style: 'Balanced', adoption: 1, value: 1, reach: 1 }
   };
   const startCountries = ['us', 'india', 'germany'];
   const incidentTypes = ['protestors', 'regulators', 'corporate', 'power'];

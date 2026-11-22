@@ -8,8 +8,8 @@
   const close = document.getElementById('close-start');
   const action = document.getElementById('action');
   const files = [
-    'asset/vendor/three.min.js', 'asset/vendor/d3.min.js', 'asset/world.js', 'asset/models.js',
-    'asset/ui/market-routes.js', 'asset/ui/scene.js?v=3', 'asset/ui/game.js?v=2'
+    'asset/vendor/three.min.js', 'asset/vendor/d3.min.js', 'asset/world.js', 'asset/models.js?v=4',
+    'asset/ui/market-routes.js?v=4', 'asset/ui/scene.js?v=4', 'asset/ui/game.js?v=4'
   ];
   const requests = new Map();
   let selectMarket;
